@@ -1,9 +1,29 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as fbSignOut } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import rawConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const fallbackConfig = {
+  projectId: "helpful-hill-p01dl",
+  appId: "1:678112285952:web:a08e72c2674c03b6eb4fe5",
+  apiKey: "AIzaSyCXcpH6FW5XUGpa3S2MlthDZuCVZCZ0NVQ",
+  authDomain: "helpful-hill-p01dl.firebaseapp.com",
+  firestoreDatabaseId: "ai-studio-3b1b0996-38d4-4a6c-af2a-9e70508c8380",
+  storageBucket: "helpful-hill-p01dl.firebasestorage.app",
+  messagingSenderId: "678112285952",
+};
+
+const firebaseConfig = { ...fallbackConfig, ...(rawConfig || {}) };
+
+let appInstance;
+try {
+  appInstance = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+} catch (e) {
+  console.warn('Firebase initialization notice:', e);
+  appInstance = getApps()[0] || initializeApp(fallbackConfig);
+}
+
+export const app = appInstance;
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
@@ -38,12 +58,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo: auth?.currentUser?.providerData?.map(provider => ({
         providerId: provider.providerId,
         email: provider.email,
       })) || []
@@ -55,16 +75,21 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Optional connection health test
+// Optional connection health test with delayed non-blocking execution
 export async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    if (db) {
+      await getDocFromServer(doc(db, 'test', 'connection'));
+    }
   } catch (error) {
     if (error instanceof Error && error.message.includes('the client is offline')) {
       console.warn('Firebase client is offline or starting up.');
     }
   }
 }
-testConnection();
+
+setTimeout(() => {
+  testConnection().catch(() => {});
+}, 100);
 
 export { signInWithPopup, fbSignOut };
