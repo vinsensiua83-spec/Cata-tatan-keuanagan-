@@ -93,7 +93,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    if (isDemoMode) {
+    if (isDemoMode || !db) {
       // Load demo data from localStorage or seed
       const storageKey = `dompetku_demo_data_${user.uid}`;
       const saved = localStorage.getItem(storageKey);
@@ -115,30 +115,38 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    // Live Firebase Cloud Firestore listeners
+    // Live Firebase Cloud Firestore listeners with try-catch guard
     setIsLoading(true);
     const userId = user.uid;
 
-    // 1. Wallets Listener
-    const qWallets = query(collection(db, 'wallets'), where('userId', '==', userId));
-    const unsubWallets = onSnapshot(
-      qWallets,
-      (snapshot) => {
-        const items = snapshot.docs.map((doc) => doc.data() as Wallet);
-        setRawWallets(items);
-        // If user has zero wallets, seed default data
-        if (snapshot.empty) {
-          seedFirebaseNewUser(userId);
+    let unsubWallets = () => {};
+    let unsubCategories = () => {};
+    let unsubTransactions = () => {};
+    let unsubBudgets = () => {};
+    let unsubRecurring = () => {};
+
+    try {
+      // 1. Wallets Listener
+      const qWallets = query(collection(db, 'wallets'), where('userId', '==', userId));
+      unsubWallets = onSnapshot(
+        qWallets,
+        (snapshot) => {
+          const items = snapshot.docs.map((doc) => doc.data() as Wallet);
+          setRawWallets(items);
+          if (snapshot.empty) {
+            seedFirebaseNewUser(userId);
+          }
+        },
+        (error) => {
+          console.warn('Wallets snapshot error:', error);
+          seedLocalDemo();
+          setIsLoading(false);
         }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, 'wallets');
-      }
-    );
+      );
 
     // 2. Categories Listener
     const qCategories = query(collection(db, 'categories'), where('userId', '==', userId));
-    const unsubCategories = onSnapshot(
+    unsubCategories = onSnapshot(
       qCategories,
       (snapshot) => {
         const items = snapshot.docs.map((doc) => doc.data() as Category);
@@ -151,7 +159,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // 3. Transactions Listener
     const qTransactions = query(collection(db, 'transactions'), where('userId', '==', userId));
-    const unsubTransactions = onSnapshot(
+    unsubTransactions = onSnapshot(
       qTransactions,
       (snapshot) => {
         const items = snapshot.docs.map((doc) => doc.data() as Transaction);
@@ -167,7 +175,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // 4. Budgets Listener
     const qBudgets = query(collection(db, 'budgets'), where('userId', '==', userId));
-    const unsubBudgets = onSnapshot(
+    unsubBudgets = onSnapshot(
       qBudgets,
       (snapshot) => {
         const items = snapshot.docs.map((doc) => doc.data() as Budget);
@@ -180,7 +188,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // 5. Recurring Listener
     const qRecurring = query(collection(db, 'recurring'), where('userId', '==', userId));
-    const unsubRecurring = onSnapshot(
+    unsubRecurring = onSnapshot(
       qRecurring,
       (snapshot) => {
         const items = snapshot.docs.map((doc) => doc.data() as RecurringTransaction);
@@ -190,6 +198,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         handleFirestoreError(error, OperationType.GET, 'recurring');
       }
     );
+    } catch (err) {
+      console.warn('Firestore subscription failed, falling back to local demo:', err);
+      seedLocalDemo();
+      setIsLoading(false);
+    }
 
     return () => {
       unsubWallets();

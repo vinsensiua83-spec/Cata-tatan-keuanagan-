@@ -29,25 +29,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check if demo mode was active
     const savedDemo = localStorage.getItem('dompetku_demo_mode') === 'true';
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        setIsDemoMode(false);
-        localStorage.removeItem('dompetku_demo_mode');
-      } else if (savedDemo) {
+    // If auth is unavailable (e.g. offline or Firebase failed), immediately unlock app
+    if (!auth) {
+      setUser(savedDemo ? DEMO_USER : null);
+      setIsDemoMode(savedDemo);
+      setLoading(false);
+      return;
+    }
+
+    // Safety timeout: ensure loading state never hangs longer than 2 seconds
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+      if (savedDemo) {
         setUser(DEMO_USER);
         setIsDemoMode(true);
-      } else {
-        setUser(null);
-        setIsDemoMode(false);
+      }
+    }, 2000);
+
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = onAuthStateChanged(
+        auth,
+        (firebaseUser) => {
+          clearTimeout(timeoutId);
+          if (firebaseUser) {
+            setUser(firebaseUser);
+            setIsDemoMode(false);
+            localStorage.removeItem('dompetku_demo_mode');
+          } else if (savedDemo) {
+            setUser(DEMO_USER);
+            setIsDemoMode(true);
+          } else {
+            setUser(null);
+            setIsDemoMode(false);
+          }
+          setLoading(false);
+        },
+        (error) => {
+          clearTimeout(timeoutId);
+          console.warn('Auth state error, fallback to local/demo:', error);
+          if (savedDemo) {
+            setUser(DEMO_USER);
+            setIsDemoMode(true);
+          }
+          setLoading(false);
+        }
+      );
+    } catch (err) {
+      clearTimeout(timeoutId);
+      console.warn('onAuthStateChanged call failed:', err);
+      if (savedDemo) {
+        setUser(DEMO_USER);
+        setIsDemoMode(true);
       }
       setLoading(false);
-    });
+    }
 
-    return () => unsubscribe();
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
   }, []);
 
   const signInWithGoogle = async () => {
+    if (!auth || !googleProvider) {
+      enableDemoMode();
+      return;
+    }
     try {
       setLoading(true);
       await signInWithPopup(auth, googleProvider);
@@ -55,7 +103,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('dompetku_demo_mode');
     } catch (error) {
       console.error('Google Sign In Error:', error);
-      throw error;
+      // If popup was blocked or failed, offer demo mode seamlessly
+      enableDemoMode();
     } finally {
       setLoading(false);
     }
@@ -73,12 +122,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('dompetku_demo_mode');
         setUser(null);
         setIsDemoMode(false);
-      } else {
+      } else if (auth) {
         await fbSignOut(auth);
       }
     } catch (error) {
       console.error('Sign Out Error:', error);
-      throw error;
+    } finally {
+      setUser(null);
+      setIsDemoMode(false);
+      localStorage.removeItem('dompetku_demo_mode');
     }
   };
 

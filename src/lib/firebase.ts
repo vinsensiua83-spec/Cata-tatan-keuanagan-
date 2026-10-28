@@ -15,18 +15,51 @@ const fallbackConfig = {
 
 const firebaseConfig = { ...fallbackConfig, ...(rawConfig || {}) };
 
-let appInstance;
+let appInstance = null;
 try {
   appInstance = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
 } catch (e) {
   console.warn('Firebase initialization notice:', e);
-  appInstance = getApps()[0] || initializeApp(fallbackConfig);
+  try {
+    appInstance = getApps()[0] || initializeApp(fallbackConfig);
+  } catch (err2) {
+    console.error('Fallback Firebase initialization failed:', err2);
+  }
+}
+
+let dbInstance: ReturnType<typeof getFirestore> | null = null;
+if (appInstance) {
+  try {
+    dbInstance = getFirestore(appInstance, firebaseConfig.firestoreDatabaseId);
+  } catch (e) {
+    try {
+      dbInstance = getFirestore(appInstance);
+    } catch (e2) {
+      console.warn('Firestore initialization notice:', e2);
+    }
+  }
+}
+
+let authInstance: ReturnType<typeof getAuth> | null = null;
+if (appInstance) {
+  try {
+    authInstance = getAuth(appInstance);
+  } catch (e) {
+    console.warn('Auth initialization notice:', e);
+  }
+}
+
+let googleProviderInstance: GoogleAuthProvider | null = null;
+try {
+  googleProviderInstance = new GoogleAuthProvider();
+} catch (e) {
+  console.warn('GoogleAuthProvider initialization notice:', e);
 }
 
 export const app = appInstance;
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+export const db = dbInstance as ReturnType<typeof getFirestore>;
+export const auth = authInstance as ReturnType<typeof getAuth>;
+export const googleProvider = googleProviderInstance as GoogleAuthProvider;
 
 export enum OperationType {
   CREATE = 'create',
