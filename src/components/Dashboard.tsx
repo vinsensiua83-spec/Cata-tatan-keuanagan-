@@ -29,7 +29,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onNavigateTab,
   onEditTransaction,
 }) => {
-  const { user, isDemoMode } = useAuth();
+  const { user, isDemoMode, openAuthModal } = useAuth();
   const {
     transactions,
     budgets,
@@ -39,6 +39,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
     netSavings,
     filters,
   } = useFinance();
+
+  const isGoogleAccount = user && !isDemoMode && 'providerData' in user;
 
   const activeMonth = filters.month === 'all' ? getCurrentMonthStr() : filters.month;
   const currentMonthBudgets = budgets.filter((b) => b.month === activeMonth);
@@ -102,13 +104,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="px-2.5 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[11px] font-bold uppercase tracking-wider">
                 {formatMonthYear(activeMonth)}
               </span>
-              {isDemoMode && (
-                <span className="px-2.5 py-0.5 bg-amber-400 text-amber-950 rounded-full text-[11px] font-bold">
-                  Mode Demo
+              {isDemoMode ? (
+                <button
+                  onClick={openAuthModal}
+                  className="px-2.5 py-0.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-amber-950 rounded-full text-[11px] font-bold flex items-center gap-1 shadow-xs transition-transform cursor-pointer"
+                  title="Klik untuk beralih ke akun Anda sendiri"
+                >
+                  <span>Mode Demo</span>
+                  <span className="underline ml-0.5 font-extrabold">Ganti ke Akun Saya →</span>
+                </button>
+              ) : isGoogleAccount ? (
+                <span className="px-2.5 py-0.5 bg-emerald-400/30 text-emerald-100 rounded-full text-[11px] font-bold flex items-center gap-1">
+                  ✓ Akun Google: {user?.email}
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 bg-blue-400/30 text-blue-100 rounded-full text-[11px] font-bold flex items-center gap-1">
+                  ✓ Akun Pribadi: {user?.email}
                 </span>
               )}
             </div>

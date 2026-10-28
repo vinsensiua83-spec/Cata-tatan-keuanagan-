@@ -65,6 +65,7 @@ const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
 export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isDemoMode } = useAuth();
+  const isLocalMode = isDemoMode || !db || Boolean(user?.uid?.startsWith('usr_')) || Boolean(user?.uid?.startsWith('demo_'));
 
   const [rawTransactions, setRawTransactions] = useState<Transaction[]>([]);
   const [rawWallets, setRawWallets] = useState<Wallet[]>([]);
@@ -93,9 +94,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
 
-    if (isDemoMode || !db) {
-      // Load demo data from localStorage or seed
-      const storageKey = `dompetku_demo_data_${user.uid}`;
+    if (isLocalMode) {
+      // Load user data from localStorage or seed
+      const storageKey = `dompetku_user_data_${user.uid}`;
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         try {
@@ -300,10 +301,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Sync demo mode to localStorage whenever changes happen
+  // Sync local/demo mode to localStorage whenever changes happen
   useEffect(() => {
-    if (isDemoMode && user) {
-      const storageKey = `dompetku_demo_data_${user.uid}`;
+    if (user && isLocalMode) {
+      const storageKey = `dompetku_user_data_${user.uid}`;
       localStorage.setItem(
         storageKey,
         JSON.stringify({
@@ -315,7 +316,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         })
       );
     }
-  }, [isDemoMode, user, rawTransactions, rawWallets, rawCategories, rawBudgets, rawRecurring]);
+  }, [isLocalMode, user, rawTransactions, rawWallets, rawCategories, rawBudgets, rawRecurring]);
 
   // Compute live wallet balances dynamically
   const computedWallets = useMemo(() => {
@@ -401,7 +402,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawTransactions((prev) => [newTx, ...prev]);
       return;
     }
@@ -420,7 +421,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawTransactions((prev) => prev.map((t) => (t.id === tx.id ? updated : t)));
       return;
     }
@@ -435,7 +436,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const deleteTransaction = async (id: string) => {
     if (!user) throw new Error('Pengguna belum masuk');
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawTransactions((prev) => prev.filter((t) => t.id !== id));
       return;
     }
@@ -459,7 +460,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawWallets((prev) => [...prev, newWallet]);
       return;
     }
@@ -478,7 +479,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       updatedAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawWallets((prev) => prev.map((w) => (w.id === wallet.id ? updated : w)));
       return;
     }
@@ -496,7 +497,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       throw new Error('Minimal harus memiliki satu dompet aktif');
     }
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawWallets((prev) => prev.filter((w) => w.id !== id));
       return;
     }
@@ -519,7 +520,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawCategories((prev) => [...prev, newCat]);
       return;
     }
@@ -533,7 +534,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateCategory = async (category: Category) => {
     if (!user) throw new Error('Pengguna belum masuk');
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawCategories((prev) => prev.map((c) => (c.id === category.id ? category : c)));
       return;
     }
@@ -547,7 +548,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteCategory = async (id: string) => {
     if (!user) throw new Error('Pengguna belum masuk');
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawCategories((prev) => prev.filter((c) => c.id !== id));
       return;
     }
@@ -574,7 +575,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: existing ? existing.createdAt : new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawBudgets((prev) => {
         const filtered = prev.filter((b) => b.id !== id);
         return [...filtered, budgetObj];
@@ -591,7 +592,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteBudget = async (id: string) => {
     if (!user) throw new Error('Pengguna belum masuk');
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawBudgets((prev) => prev.filter((b) => b.id !== id));
       return;
     }
@@ -614,7 +615,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       createdAt: new Date().toISOString(),
     };
 
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawRecurring((prev) => [...prev, item]);
       return;
     }
@@ -628,7 +629,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const updateRecurring = async (rec: RecurringTransaction) => {
     if (!user) throw new Error('Pengguna belum masuk');
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawRecurring((prev) => prev.map((r) => (r.id === rec.id ? rec : r)));
       return;
     }
@@ -642,7 +643,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const deleteRecurring = async (id: string) => {
     if (!user) throw new Error('Pengguna belum masuk');
-    if (isDemoMode) {
+    if (isLocalMode) {
       setRawRecurring((prev) => prev.filter((r) => r.id !== id));
       return;
     }
@@ -677,7 +678,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Import batch of transactions
   const importTransactionsBatch = async (newTxs: Omit<Transaction, 'id' | 'userId' | 'createdAt'>[]) => {
     if (!user) throw new Error('Pengguna belum masuk');
-    if (isDemoMode) {
+    if (isLocalMode) {
       const createdItems: Transaction[] = newTxs.map((t, idx) => ({
         ...t,
         id: `tx_imp_${Date.now()}_${idx}`,
@@ -706,7 +707,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const resetToSampleData = async () => {
     if (!user) return;
-    if (isDemoMode) {
+    if (isLocalMode) {
       seedLocalDemo();
       return;
     }

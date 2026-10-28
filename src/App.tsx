@@ -10,6 +10,7 @@ import { CategoryManager } from './components/CategoryManager';
 import { RecurringManager } from './components/RecurringManager';
 import { TransactionModal } from './components/TransactionModal';
 import { ExportImportModal } from './components/ExportImportModal';
+import { AuthModal } from './components/AuthModal';
 import { Transaction } from './types';
 import {
   Wallet,
@@ -20,10 +21,11 @@ import {
   BarChart3,
   Plus,
   Sparkles,
+  User,
 } from 'lucide-react';
 
 function MainApp() {
-  const { user, loading, isDemoMode, signInWithGoogle, enableDemoMode } = useAuth();
+  const { user, loading, isDemoMode, signInWithGoogle, enableDemoMode, openAuthModal } = useAuth();
   const { isLoading: isFinanceLoading } = useFinance();
 
   const [currentTab, setCurrentTab] = useState<
@@ -113,21 +115,30 @@ function MainApp() {
           </p>
 
           {/* Action CTA Buttons */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={() => signInWithGoogle()}
-              className="w-full sm:w-auto px-7 py-3.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-2xl shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2.5"
+              className="w-full sm:w-auto px-6 py-3.5 text-xs sm:text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:scale-95 rounded-2xl shadow-xl shadow-emerald-600/30 transition-all flex items-center justify-center gap-2"
             >
               <LogIn className="w-4 h-4" />
               Masuk dengan Akun Google
             </button>
             <button
-              onClick={enableDemoMode}
-              className="w-full sm:w-auto px-7 py-3.5 text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2"
+              onClick={openAuthModal}
+              className="w-full sm:w-auto px-6 py-3.5 text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm transition-all flex items-center justify-center gap-2"
             >
-              Coba Langsung (Mode Demo)
+              <User className="w-4 h-4 text-emerald-600" />
+              Gunakan Akun Pribadi
+            </button>
+            <button
+              onClick={enableDemoMode}
+              className="w-full sm:w-auto px-6 py-3.5 text-xs sm:text-sm font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all flex items-center justify-center gap-1.5"
+            >
+              Mode Demo
             </button>
           </div>
+
+          <AuthModal />
 
           {/* Feature Highlights Grid */}
           <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
@@ -235,6 +246,9 @@ function MainApp() {
         isOpen={isExportImportOpen}
         onClose={() => setIsExportImportOpen(false)}
       />
+
+      {/* Auth & Profile Modal */}
+      <AuthModal />
 
       {/* Mobile Floating Action Button */}
       <div className="sm:hidden fixed bottom-5 right-5 z-40">
